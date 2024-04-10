@@ -28,15 +28,18 @@ const publicAccessBlock = new aws.s3.BucketPublicAccessBlock(
   }
 );
 
-// Upload the files for the static website to the S3 bucket
-const files = ["index.html", "error.html"]; // Add all the files you need to upload
+/**
+ * Upload the files for the static website to the S3 bucket
+ */
+const files = ["index.html", "error.html"];
 for (const file of files) {
   new aws.s3.BucketObject(
     file,
     {
       bucket: bucket,
-      source: new pulumi.asset.FileAsset(`./www/${file}`), // Assumes files are in a 'www' directory
-      contentType: "text/html", // Set the appropriate Content-Type for each file
+      source: new pulumi.asset.FileAsset(`./www/${file}`),
+      contentType: "text/html",
+      acl: "public-read",
     },
     { dependsOn: [publicAccessBlock, ownershipControls] }
   );
@@ -91,5 +94,5 @@ const cdn = new aws.cloudfront.Distribution("my-cdn", {
   ],
 });
 
-// Export the distribution URL to access the static website
 export const distributionUrl = cdn.domainName;
+export const bucketEndpoint = pulumi.interpolate`http://${bucket.websiteEndpoint}`;
