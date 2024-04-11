@@ -45,6 +45,31 @@ for (const file of files) {
   );
 }
 
+// Update the S3 bucket policy to grant read access to the Origin Access Identity
+const bucketPolicy = new aws.s3.BucketPolicy("myBucketPolicy", {
+  bucket: bucket.bucket,
+  policy: bucket.bucket.apply((bucketName: string) =>
+    JSON.stringify({
+      Version: "2012-10-17",
+      Statement: [
+        {
+          Effect: "Allow",
+          Principal: {
+            Service: "cloudfront.amazonaws.com",
+          },
+          Action: "s3:GetObject",
+          Resource: `arn:aws:s3:::${bucketName}/*`,
+          Condition: {
+            StringEquals: {
+              "AWS:SourceArn": cdn.arn.apply((arn: string) => arn), //to fix
+            },
+          },
+        },
+      ],
+    })
+  ),
+});
+
 // Create a CloudFront distribution for the S3 bucket
 const cdn = new aws.cloudfront.Distribution("my-cdn", {
   origins: [
@@ -52,7 +77,8 @@ const cdn = new aws.cloudfront.Distribution("my-cdn", {
       domainName: bucket.websiteEndpoint,
       originId: bucket.arn,
       customOriginConfig: {
-        originProtocolPolicy: "http-only", // S3 websites only support HTTP
+        // Amazon S3 doesn't support HTTPS connections when using an S3 bucket configured as a website endpoint
+        originProtocolPolicy: "http-only",
         httpPort: 80,
         httpsPort: 443,
         originSslProtocols: ["TLSv1.2"],
